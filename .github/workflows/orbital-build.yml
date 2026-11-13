@@ -1,0 +1,123 @@
+# Builds Horizon with the mod API (the orbital builds Orbital Laser runs on) for Linux and Windows, packaged as the
+# launcher installs them: horizon-orbital-linux-x86_64.tar.gz and horizon-orbital-windows-x64.zip, each one
+# horizon-orbital/ folder made by `xtask package`, as release.yml makes upstream's.
+#
+# Run it by hand (Actions -> orbital build -> Run workflow) to get both archives as the run's artifacts. Pushing an
+# `orbital-mod-api-N` tag also publishes them as that release, with a SHA256SUMS and, in the run's summary, the
+# lines that pin them in launcher/orbital-releases.txt: the launcher installs a build only once it is pinned there.
+name: orbital build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["orbital-mod-api-*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orbital-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux
+            os: ubuntu-22.04
+            asset: horizon-orbital-linux-x86_64.tar.gz
+          - name: windows
+            os: windows-latest
+            asset: horizon-orbital-windows-x64.zip
+            exe: .exe
+            # The C runtime linked in, so the game runs without the Visual C++ redistributable.
+            rustflags: -C target-feature=+crt-static
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: orbital-${{ matrix.name }}
+      - name: ALSA and udev headers
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev
+      - name: Build the client (with mods), horizon-ctl, horizon-prepare and horizon-server
+        run: cargo build --release --locked --features horizon-client/mods -p horizon-client --bin horizon-client --bin horizon-ctl -p horizon-prepare --bin horizon-prepare -p horizon-server --bin horizon-server
+      - name: Only system libraries
+        run: |
+          for binary in horizon-client horizon-ctl horizon-prepare horizon-server; do
+            ${{ runner.os == 'Windows' && 'python' || 'python3' }} tools/check_imports.py "target/release/$binary${{ matrix.exe }}"
+          done
+      - name: Every program starts
+        run: |
+          set -euo pipefail
+          bin=target/release
+          "$bin/horizon-client${{ matrix.exe }}" --help | grep -q -- '--resources'
+          "$bin/horizon-ctl${{ matrix.exe }}" --help > /dev/null
+          "$bin/horizon-prepare${{ matrix.exe }}" --help | grep -q -- '--minecraft-dir'
+      - name: Package
+        run: |
+          set -euo pipefail
+          cargo run --locked -p xtask -- package "target/release/horizon-client${{ matrix.exe }}" dist/horizon-orbital
+          cd dist
+          case "${{ matrix.asset }}" in
+            *.tar.gz) tar czf "${{ matrix.asset }}" horizon-orbital ;;
+            *) 7z a -tzip "${{ matrix.asset }}" horizon-orbital > /dev/null ;;
+          esac
+          ls -l "${{ matrix.asset }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/orbital-mod-api-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums, and the lines that pin them in the launcher
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum horizon-orbital-linux-x86_64.tar.gz horizon-orbital-windows-x64.zip > SHA256SUMS
+          cat SHA256SUMS
+          {
+            echo "### Pin these in launcher/orbital-releases.txt"
+            echo '```'
+            awk -v tag="$TAG" '{ print tag, $2, $1 }' SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish ${{ github.ref_name }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Horizon with mod input, ui, render and world (${TAG#orbital-mod-api-})" \
+            --notes "Horizon with the mod API Orbital Laser runs on, built from ${GITHUB_SHA::8} for Linux and Windows. Not an official Horizon release; it contains nothing from Minecraft." \
+            "dist/horizon-orbital-linux-x86_64.tar.gz#Game files: Linux (horizon-orbital-linux-x86_64.tar.gz)" \
+            "dist/horizon-orbital-windows-x64.zip#Game files: Windows (horizon-orbital-windows-x64.zip)" \
+            dist/SHA256SUMS
