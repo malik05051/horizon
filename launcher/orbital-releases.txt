@@ -1,0 +1,16 @@
+# The game builds this launcher installs: Stink-O/horizon's `orbital-mod-api-N` releases (the mod API fork that
+# Orbital Laser runs on), which carry no signed SHA256SUMS. `<tag> <asset> <sha256>` per line, the SHA-256 GitHub
+# computed for each archive at upload (`gh release view <tag> -R Stink-O/horizon --json assets`). A build is
+# installed only with exactly this file; a release that is not listed here is refused until a launcher lists it.
+orbital-mod-api-1 horizon-orbital-linux-x86_64.tar.gz f9417952ca706f2f943da5c3a8cb075ea4c55ba86f289b1bb08025e3ded90f43
+orbital-mod-api-2 horizon-orbital-linux-x86_64.tar.gz f813ae1f5130d9a4ea10578079d9864a6efac49a4b08414bdbdce181e7e92968
+orbital-mod-api-3 horizon-orbital-linux-x86_64.tar.gz e846195030c8e9f2315c4821d809add2a006d0cbd1299b45cb504fd2fb496555
+orbital-mod-api-4 horizon-orbital-linux-x86_64.tar.gz 5202bade800d729ff83bf1bd1f15e5106b8268f0f932f29c0a815f9538b2cff0
+orbital-mod-api-5 horizon-orbital-linux-x86_64.tar.gz 642ba75434d46b58857e604220cd2ba7cf619b1caa689db7d023791de97c0f0e
+orbital-mod-api-6 horizon-orbital-linux-x86_64.tar.gz 07416cc68f2b097e7cf8d1cc3c3fb2f908df01c1cc2af05c97a4b75330c50cf8
+orbital-mod-api-7 horizon-orbital-linux-x86_64.tar.gz 7bac52f65e7e6d83fd082c94bf1a240987d31a8d2c0a695b7c6ac4c811745977
+orbital-mod-api-8 horizon-orbital-linux-x86_64.tar.gz ff888f2c975806a62ccc5be6b64c6d960cb57c9206598b01db7e3dcf27916f74
+orbital-mod-api-9 horizon-orbital-linux-x86_64.tar.gz 931c8e08eefa07136aa967af6ad3c303ffb14ef8c6e31f1eab3f03eaac297540
+orbital-mod-api-10 horizon-orbital-linux-x86_64.tar.gz 9ba296559dcb2869725aaa8e25c31b566743a250b4c0c976fd70e190ef67b13b
+orbital-mod-api-11 horizon-orbital-linux-x86_64.tar.gz 7cba7da8ad7a86aed91415e41c686f1c7e9f5e759e66e27030d5f440448200c9
+orbital-mod-api-12 horizon-orbital-linux-x86_64.tar.gz 69b38466668fd135bb42bfac0d4b5277a3f81285ec09a51f4478c695a4e0947f
