@@ -113,7 +113,7 @@ jobs:
             # which only the Visual C++ redistributable installs.
             rustflags: -C target-feature=+crt-static
     # A fork has no Mac mini: there the macOS build runs on GitHub's own Apple silicon runner (MAC_RUNNER still wins).
-    runs-on: ${{ matrix.mac && (vars.MAC_RUNNER || (github.repository == 'ludovic111/horizon' && 'ludovics-mac-mini' || 'macos-14')) || matrix.os }}
+    runs-on: ${{ matrix.mac && (vars.MAC_RUNNER || (github.repository == 'ludovic111/horizon' && 'ludovics-mac-mini' || 'macos-latest')) || matrix.os }}
     # Notarizing the app and then the .dmg can take a few minutes each.
     timeout-minutes: ${{ matrix.mac && 60 || 40 }}
     env:
@@ -193,7 +193,8 @@ jobs:
           retry "$launcher" install latest
           "$launcher" versions --installed
           "$launcher" links --json
-          clients=("$HORIZON_LAUNCHER_HOME"/versions/v*/horizon-client*)
+          # Any version folder: upstream's tags are v*, a fork's orbital builds orbital-mod-api-N.
+          clients=("$HORIZON_LAUNCHER_HOME"/versions/*/horizon-client*)
           client="${clients[0]}"
           echo "installed client: $client"
           # The game's Linux build is the game's to keep portable (release.yml checks it): a
