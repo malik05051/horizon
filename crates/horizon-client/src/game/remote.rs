@@ -462,6 +462,13 @@ impl Game<'_> {
         }
         self.finish_perf();
         self.mods_left_world();
+        // updateLevelInEngines(null), as `finish_close_world` does: every sound stops and the music lets go of its
+        // track. Single player's Save and Quit comes here once its server has stopped and shows the title, so
+        // `finish_close_world` is skipped after it: without this the world's sounds (a mod's sirens and rumbles, the
+        // ambience) played on over the title screen.
+        self.ambience.clear(&mut self.audio);
+        self.music.stop_playing(None, &mut self.audio);
+        self.audio.stop_all();
         if reason.is_none() {
             // Leaving on purpose: nothing for auto-reconnect to retry.
             self.extras_left();
