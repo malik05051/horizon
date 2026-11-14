@@ -178,6 +178,8 @@ jobs:
                    [[ -z "$others" ]] || { echo "::error::links $others"; exit 1; } ;;
           esac
       - name: Smoke test
+        # A fork's game builds (orbital-build.yml) are Linux and Windows only: on macOS there is nothing to install.
+        if: runner.os != 'macOS' || github.repository == 'ludovic111/horizon'
         env:
           HORIZON_LAUNCHER_NO_SELF_UPDATE: '1'
           HORIZON_GITHUB_TOKEN: ${{ github.token }}
