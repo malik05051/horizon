@@ -1,3 +1,5 @@
+# This fork redirects the releases of Horizon to my releases of my forked mod.
+
 <p align="center">
   <img src="docs/media/banner.webp" alt="Horizon: Minecraft: Java Edition 26.3, rewritten in Rust and checked against vanilla by 281 differential harnesses" width="100%">
 </p>
