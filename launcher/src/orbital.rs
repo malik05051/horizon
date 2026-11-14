@@ -1,11 +1,11 @@
-//! The game builds this launcher installs: Stink-O/horizon's `orbital-mod-api-N` releases, Horizon
-//! with the mod capabilities Orbital Laser needs. They carry no signed SHA256SUMS, so each archive is
+//! The game builds this launcher installs: malik05051/horizon's `orbital-mod-api-N` releases (made by
+//! .github/workflows/orbital-build.yml), Horizon with the mod capabilities Orbital Laser needs. They carry no signed SHA256SUMS, so each archive is
 //! installed only with the SHA-256 pinned for it in `orbital-releases.txt`; anything else is refused.
 
 /// Where the game's releases come from. The launcher's own updates still come from `backend::REPO`.
-pub const GAME_REPO: &str = "Stink-O/horizon";
+pub const GAME_REPO: &str = "malik05051/horizon";
 
-/// The tag prefix of those releases: `orbital-mod-api-12`.
+/// The tag prefix of those releases: `orbital-mod-api-13`.
 pub const TAG_PREFIX: &str = "orbital-mod-api-";
 
 const PINNED: &str = include_str!("../orbital-releases.txt");
@@ -98,7 +98,7 @@ mod tests {
         );
         assert!(digest("orbital-mod-api-0", "horizon-orbital-linux-x86_64.tar.gz").is_err());
         assert!(is_pinned(
-            "orbital-mod-api-12",
+            "orbital-mod-api-13",
             "horizon-orbital-linux-x86_64.tar.gz"
         ));
     }
