@@ -249,6 +249,9 @@ jobs:
 
   sign:
     needs: [decide, build]
+    # A fork publishes no launcher (its launchers update from upstream's releases), and its history holds upstream's
+    # pull request numbers, which the notes can't look up there: a fork stops after the builds.
+    if: github.repository == 'ludovic111/horizon'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # The only job that holds the release signing key, a secret of the `release` environment, which only main's real
@@ -288,6 +291,7 @@ jobs:
 
   release:
     needs: [decide, build, sign]
+    if: github.repository == 'ludovic111/horizon'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
