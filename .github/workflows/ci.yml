@@ -73,7 +73,8 @@ jobs:
           cargo +stable test --workspace --lib --bins --tests --features horizon-client/mods,horizon-mods/pack
           cargo +stable test --workspace --doc --features horizon-client/mods,horizon-mods/pack
   parity:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    # Only where the Mac mini's runner is: a fork's own pull requests would wait for it until GitHub gives up.
+    if: github.repository == 'ludovic111/horizon' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     uses: ./.github/workflows/parity.yml
     with:
       base: ${{ github.event.pull_request.base.sha }}

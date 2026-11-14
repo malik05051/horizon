@@ -314,6 +314,15 @@ impl Source for Registry {
     }
 }
 
+/// The path in a `file://` URL: `file:///C:/x` is `C:/x` on Windows (the index takes local files only as
+/// `file:///`), every other one the rest of the URL as it is.
+fn local_path(path: &str) -> &str {
+    match path.strip_prefix('/') {
+        Some(rest) if cfg!(windows) && rest.as_bytes().get(1) == Some(&b':') => rest,
+        _ => path,
+    }
+}
+
 /// Downloads a registry file, checked; `file://` files only from a local index.
 fn fetch(
     file: &FileRef,
@@ -323,6 +332,7 @@ fn fetch(
 ) -> Result<PathBuf, String> {
     match file.url.strip_prefix("file://").filter(|_| local) {
         Some(path) => {
+            let path = local_path(path);
             let reader = fs::File::open(path).map_err(|e| format!("{path}: {e}"))?;
             download::save_from_anywhere(file, reader, folder, progress)
         }
