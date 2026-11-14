@@ -2,6 +2,7 @@ import datetime as dt
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 from tools import release_train as train
 
@@ -15,6 +16,15 @@ def pr(number, title="Fix a thing", labels=(), paths=("crates/horizon-client/src
 
 
 class ReleaseTrainTests(unittest.TestCase):
+    def setUp(self):
+        # The notes name the repository CI runs in (GITHUB_REPOSITORY); these tests expect the main one's, a
+        # fork's CI included.
+        main = "ludovic111/horizon"
+        for name, value in (("REPO", main), ("PLAYERS", train.PLAYERS.replace(f"/{train.REPO}/", f"/{main}/"))):
+            patch = mock.patch.object(train, name, value)
+            patch.start()
+            self.addCleanup(patch.stop)
+
     def test_player_facing_paths(self):
         exporters = {"mods/horizon/src/test/java/dev/horizonlab/parity/VanillaMobDataExporter.java"}
         self.assertTrue(train.player_facing("crates/horizon-client/src/game.rs", "game"))

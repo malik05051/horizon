@@ -213,19 +213,29 @@ mod tests {
               {{"id": "coords_hud", "kind": "mod", "name": "Coordinates HUD", "summary": "", "license": "MIT",
                 "source": "https://x.test", "versions": [{{"version": "0.1.0", "api": "0.1", "side": "client",
                 "capabilities": ["game-read", "hud", "chat"], "game": "26.3", "file": {{"name": "coords_hud-0.1.0.hmod",
-                "url": "file://{}", "size": {}, "sha256": "{hmod_sha}"}}}}]}},
+                "url": "{}", "size": {}, "sha256": "{hmod_sha}"}}}}]}},
               {{"id": "cozy", "kind": "modpack", "name": "Cozy", "summary": "", "license": "MIT",
                 "source": "https://x.test", "versions": [{{"version": "1.0.0", "api": "1", "game": "26.3",
                 "requires": [{{"id": "coords_hud", "version": "0.1.0", "sha256": "{hmod_sha}"}}],
-                "file": {{"name": "cozy-1.0.0.hpack", "url": "file://{}", "size": {}, "sha256": "{}"}}}}]}}
+                "file": {{"name": "cozy-1.0.0.hpack", "url": "{}", "size": {}, "sha256": "{}"}}}}]}}
             ]{extra}}}"#,
-            hmod.display(),
+            file_url(&hmod),
             size(&hmod),
-            hpack.display(),
+            file_url(&hpack),
             size(&hpack),
             idx::sha256_file(&hpack).unwrap()
         );
         Index::parse_local(&text).unwrap()
+    }
+
+    /// A `file:///` URL for `path`: `file:///tmp/x` here, `file:///C:/Users/x` on Windows, whose
+    /// backslashes would also be escapes in the index's JSON.
+    fn file_url(path: &Path) -> String {
+        let path = path.display().to_string().replace('\\', "/");
+        match path.starts_with('/') {
+            true => format!("file://{path}"),
+            false => format!("file:///{path}"),
+        }
     }
 
     fn scratch(name: &str) -> PathBuf {
