@@ -43,11 +43,11 @@ pub struct Release {
 }
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-pub const ASSET: Option<&str> = Some("horizon-linux-x86_64.tar.gz");
+pub const ASSET: Option<&str> = Some("horizon-orbital-linux-x86_64.tar.gz");
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-pub const ASSET: Option<&str> = Some("horizon-macos-arm64.zip");
+pub const ASSET: Option<&str> = Some("horizon-orbital-macos-arm64.zip");
 #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
-pub const ASSET: Option<&str> = Some("horizon-windows-x64.zip");
+pub const ASSET: Option<&str> = Some("horizon-orbital-windows-x64.zip");
 #[cfg(not(any(
     all(target_os = "linux", target_arch = "x86_64"),
     all(target_os = "macos", target_arch = "aarch64"),
@@ -106,10 +106,14 @@ fn get(url: &str) -> Result<ureq::Response, String> {
     })
 }
 
-/// A Horizon game tag: `v` then a digit (`v2026.10.13`). Launcher tags never match.
+/// A Horizon game tag: an orbital build (`orbital-mod-api-12`, the ones this launcher installs), or
+/// `v` then a digit (`v2026.10.13`, upstream's, still known for versions installed before). Launcher
+/// tags never match.
 pub fn is_game_tag(tag: &str) -> bool {
-    tag.strip_prefix('v')
-        .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
+    crate::orbital::build(tag).is_some()
+        || tag
+            .strip_prefix('v')
+            .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
 }
 
 /// The launcher version in a `launcher@X.Y.Z` (or `launcher-vX.Y.Z`) tag, or None for any other tag.
@@ -150,6 +154,8 @@ pub enum ReleaseOrder {
     /// Numbers without trailing zeros, so 1.2 and 1.2.0 are equal.
     Before02(Vec<u64>),
     Semver([u64; 3], Prerelease),
+    /// An orbital build (`orbital-mod-api-N`), by its number: newer than every upstream tag.
+    Orbital(u64),
 }
 
 /// (is a release, the pre-release's identifiers): a release follows every pre-release of its
@@ -166,6 +172,9 @@ pub enum Identifier {
 const FIRST_YEAR: u64 = 1000;
 
 pub fn release_order(tag: &str) -> ReleaseOrder {
+    if let Some(n) = crate::orbital::build(tag) {
+        return ReleaseOrder::Orbital(n);
+    }
     let semver = tag
         .strip_prefix(LAUNCHER_TAG_PREFIX)
         .or_else(|| tag.strip_prefix('v'))
@@ -228,9 +237,18 @@ pub fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
     release_order(a).cmp(&release_order(b))
 }
 
-/// Every published release of the repository, both kinds, as GitHub's JSON.
+/// Every published release of the repository, both kinds, as GitHub's JSON: the launcher's own.
 fn release_list() -> Result<serde_json::Value, String> {
-    let url = format!("https://api.github.com/repos/{REPO}/releases?per_page=100");
+    list_of(REPO)
+}
+
+/// The game's releases, as GitHub's JSON: the orbital builds of [`crate::orbital::GAME_REPO`].
+fn game_release_list() -> Result<serde_json::Value, String> {
+    list_of(crate::orbital::GAME_REPO)
+}
+
+fn list_of(repo: &str) -> Result<serde_json::Value, String> {
+    let url = format!("https://api.github.com/repos/{repo}/releases?per_page=100");
     get(&url)?.into_json().map_err(|e| e.to_string())
 }
 
@@ -279,7 +297,7 @@ fn is_launcher_tag(tag: &str) -> bool {
 /// Published Horizon releases, newest first. Drafts never reach the anonymous API, and launcher
 /// releases are left out.
 pub fn releases() -> Result<Vec<Release>, String> {
-    Ok(parse_releases(&release_list()?, ASSET, is_game_tag))
+    Ok(parse_releases(&game_release_list()?, ASSET, is_game_tag))
 }
 
 /// The launcher releases in `list` (the newest 100 releases). Game releases come out several times
@@ -345,9 +363,18 @@ pub fn latest(releases: &[Release]) -> Option<&Release> {
 }
 
 /// The releases a launcher installs by itself: every one that is published as a release, so
-/// GitHub's latest when it comes out. The pre-releases of the old Alpha channel are left out.
+/// GitHub's latest when it comes out. The pre-releases of the old Alpha channel are left out, and so
+/// is an orbital build this launcher has no pinned SHA-256 for: it would only be refused.
 pub fn installable_updates(releases: &[Release]) -> Vec<Release> {
-    releases.iter().filter(|r| !r.prerelease).cloned().collect()
+    releases
+        .iter()
+        .filter(|r| !r.prerelease)
+        .filter(|r| {
+            crate::orbital::build(&r.tag).is_none()
+                || crate::orbital::is_pinned(&r.tag, ASSET.unwrap_or_default())
+        })
+        .cloned()
+        .collect()
 }
 
 /// How often a launcher left open looks for new releases: they come out several times a day.
@@ -508,8 +535,8 @@ fn unpack(archive: &Path, url: &str, to: &Path) -> Result<(), String> {
     }
 }
 
-/// Downloads one release, checks it against its signed checksums and unpacks it; `progress` gets
-/// the fraction done.
+/// Downloads one release, checks it against the SHA-256 this launcher pins for it
+/// (`orbital-releases.txt`) and unpacks it; `progress` gets the fraction done.
 pub fn install(release: &Release, progress: impl Fn(f32)) -> Result<(), String> {
     let tag = release.tag.as_str();
     if !is_game_tag(tag) {
@@ -519,7 +546,7 @@ pub fn install(release: &Release, progress: impl Fn(f32)) -> Result<(), String> 
         .asset
         .clone()
         .ok_or_else(|| format!("{tag} has no build for this platform."))?;
-    let sha256 = signed_digest(tag, ASSET.unwrap_or_default())?;
+    let sha256 = crate::orbital::digest(tag, ASSET.unwrap_or_default())?;
     let root = versions_dir();
     let partial = root.join(format!(".{tag}.partial"));
     let _ = fs::remove_dir_all(&partial);
@@ -1783,13 +1810,23 @@ fn launcher_update_from(releases: &[Release], own: &str) -> Option<Release> {
         .cloned()
 }
 
-/// Load the game's release list and both update kinds from the same GitHub response.
-/// Publish the game releases before any fallback lookups for older launcher tags, so those
-/// lookups cannot hold up the release pages or opening animation. A list error reaches both.
+/// Load the game's release list (the orbital builds) and both update kinds. Publish the game
+/// releases before the launcher's own list (from upstream) and any fallback lookups for older
+/// launcher tags, so those cannot hold up the release pages or opening animation. A game list error
+/// reaches both; a launcher list error only means no launcher update is offered.
 pub fn releases_and_updates(
     on_releases: impl FnOnce(Result<Vec<Release>, String>),
 ) -> Result<Updates, String> {
-    releases_and_updates_with(release_list, installed, launcher_releases_in, on_releases)
+    releases_and_updates_with(
+        game_release_list,
+        installed,
+        |_| {
+            release_list()
+                .map(|list| launcher_releases_in(&list))
+                .unwrap_or_default()
+        },
+        on_releases,
+    )
 }
 
 fn releases_and_updates_with(
@@ -2509,6 +2546,39 @@ mod tests {
             .map(|r| r.tag)
             .collect();
         assert_eq!(launcher, ["launcher-v9.0.0"]);
+    }
+
+    /// The orbital builds are the game's releases: by their number, above every upstream tag, so a
+    /// launcher that had an upstream version installed is offered the newest orbital build.
+    #[test]
+    fn orbital_builds_come_after_upstream_and_by_number() {
+        assert!(is_game_tag("orbital-mod-api-12"));
+        assert!(!is_game_tag("orbital-mod-api-x"));
+        assert_eq!(
+            compare_versions("orbital-mod-api-10", "orbital-mod-api-9"),
+            Greater
+        );
+        assert_eq!(compare_versions("orbital-mod-api-1", "v0.2.63"), Greater);
+        assert_eq!(
+            compare_versions("orbital-mod-api-1", "v2026.10.21"),
+            Greater
+        );
+        let asset = ASSET.unwrap_or("horizon-orbital-linux-x86_64.tar.gz");
+        let list = serde_json::json!([
+            {"tag_name": "orbital-mod-api-9", "assets": [{"name": asset, "browser_download_url": "9", "size": 1}]},
+            {"tag_name": "orbital-mod-api-10", "assets": [{"name": asset, "browser_download_url": "10", "size": 1}]},
+        ]);
+        let releases = parse_releases(&list, Some(asset), is_game_tag);
+        assert_eq!(releases[0].tag, "orbital-mod-api-10");
+        let installed = ["v0.2.63".to_string()];
+        let offered = horizon_update(&releases, &installed).map(|r| r.tag);
+        assert_eq!(offered, Some("orbital-mod-api-10".into()));
+        // A build with no pinned SHA-256 is never offered as an update: it would be refused.
+        let unknown = serde_json::json!([
+            {"tag_name": "orbital-mod-api-9999", "assets": [{"name": asset, "browser_download_url": "u", "size": 1}]},
+        ]);
+        let unknown = parse_releases(&unknown, Some(asset), is_game_tag);
+        assert!(installable_updates(&unknown).is_empty());
     }
 
     /// Rolling a release back (`gh release edit <tag> --draft`, docs/release-flow.md) makes the
