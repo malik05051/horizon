@@ -29,6 +29,8 @@ on:
       - 'crates/horizon-telemetry/**'
       - 'crates/horizon-theme/**'
       - '.github/workflows/launcher.yml'
+      # Its tests check this reference against the commands (cli_tools.rs).
+      - 'docs/launcher-commands.md'
   schedule:
     - cron: '7-59/10 * * * *'
   workflow_dispatch:
