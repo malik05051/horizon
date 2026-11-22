@@ -5,6 +5,10 @@
 /// Where the game's releases come from. The launcher's own updates still come from `backend::REPO`.
 pub const GAME_REPO: &str = "malik05051/horizon";
 
+/// Whether this launcher replaces itself with a newer launcher release. Not this fork's: it publishes no launcher of
+/// its own, and upstream's (`backend::REPO`) installs upstream's game, not these builds.
+pub const UPDATES_ITSELF: bool = false;
+
 /// The tag prefix of those releases: `orbital-mod-api-13`.
 pub const TAG_PREFIX: &str = "orbital-mod-api-";
 

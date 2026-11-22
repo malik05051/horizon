@@ -1821,6 +1821,10 @@ pub fn releases_and_updates(
         game_release_list,
         installed,
         |_| {
+            // No launcher update is offered when this launcher doesn't update itself (orbital::UPDATES_ITSELF).
+            if !crate::orbital::UPDATES_ITSELF {
+                return Vec::new();
+            }
             release_list()
                 .map(|list| launcher_releases_in(&list))
                 .unwrap_or_default()
@@ -1899,9 +1903,12 @@ pub fn exe_path() -> &'static Path {
     EXE.get_or_init(|| std::env::current_exe().unwrap_or_else(|_| PathBuf::from(LAUNCHER_BINARY)))
 }
 
-/// Development builds and `HORIZON_LAUNCHER_NO_SELF_UPDATE` never replace themselves.
+/// Development builds, `HORIZON_LAUNCHER_NO_SELF_UPDATE` and a launcher that doesn't update itself
+/// (`orbital::UPDATES_ITSELF`) never replace themselves.
 pub fn self_update_allowed() -> bool {
-    !cfg!(debug_assertions) && std::env::var_os("HORIZON_LAUNCHER_NO_SELF_UPDATE").is_none()
+    crate::orbital::UPDATES_ITSELF
+        && !cfg!(debug_assertions)
+        && std::env::var_os("HORIZON_LAUNCHER_NO_SELF_UPDATE").is_none()
 }
 
 /// The version in `horizon-launcher --version`'s output (`horizon-launcher 0.1.5`).
