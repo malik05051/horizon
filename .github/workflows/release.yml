@@ -42,9 +42,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   decide:
+    # The schedule is upstream's release train: a fork keeps its hand-started runs and skips the rest.
     if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) &&
+      (github.event_name == 'workflow_dispatch' || github.repository == 'ludovic111/horizon')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:

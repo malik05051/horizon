@@ -29,6 +29,8 @@ env:
 
 jobs:
   audit:
+    # A fork has no horizon-game runner: a scheduled audit there would wait for one all day.
+    if: github.event_name == 'workflow_dispatch' || github.repository == 'ludovic111/horizon'
     runs-on: [self-hosted, horizon-game]
     timeout-minutes: 150
     steps:
