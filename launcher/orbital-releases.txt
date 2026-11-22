@@ -5,3 +5,5 @@
 # is refused until a launcher lists it.
 orbital-mod-api-13 horizon-orbital-linux-x86_64.tar.gz 021cea90c693e58e0565b1c3f441de4d858eae06244dd930200292d4ff29c9a4
 orbital-mod-api-13 horizon-orbital-windows-x64.zip c6e5c18ade72600ab22cb453ad2a66a06cc6e13f3d3908c5adde054cf7ee54b7
+orbital-mod-api-14 horizon-orbital-linux-x86_64.tar.gz a70ae5eeba71ce4837b4a804351d63a9d85d40bb005ddc26b9b14c9a8eed25cb
+orbital-mod-api-14 horizon-orbital-windows-x64.zip 595b0056e21920940f2cc2a7893652da11fb1ecef16b4fa92ee39e927851459e
