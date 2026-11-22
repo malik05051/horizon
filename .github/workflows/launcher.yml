@@ -55,6 +55,9 @@ env:
 
 jobs:
   decide:
+    # Upstream's 10-minute release train. On a fork every run is a dry run that builds all three launchers, so the
+    # schedule there would build them every 10 minutes: GitHub paused a fork's Actions for that. Pushes still build.
+    if: github.event_name != 'schedule' || github.repository == 'ludovic111/horizon'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
