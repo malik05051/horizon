@@ -486,6 +486,11 @@ impl Launcher {
                 Msg::Reused(_) => self.installed = backend::installed(),
                 Msg::Keychain(persistent) => self.keychain = persistent,
                 Msg::Playing(playing) => self.playing = playing,
+                Msg::OrbitalMod(Ok(note)) => eprintln!("{note}"),
+                Msg::OrbitalMod(Err(e)) => {
+                    eprintln!("{e}");
+                    self.client_error = Some(e);
+                }
                 Msg::Session(session) => {
                     if let Some(tag) = self.starting_client.take() {
                         let mut cmd = backend::client_command(&tag);
@@ -834,6 +839,9 @@ impl Launcher {
         self.play_pressed = Some(Instant::now());
         let tx = self.tx.clone();
         std::thread::spawn(move || {
+            // Orbital Laser first, so the game starts with the newest one; a failure only says so.
+            let checked = horizon_launcher::orbital_mod::before_play(&backend::game_home());
+            let _ = tx.send(Msg::OrbitalMod(checked.map(|outcome| outcome.to_string())));
             backend::complete_packs(&tag);
             let session = (|| {
                 let mut accounts = Accounts::load();
@@ -2390,6 +2398,14 @@ impl Launcher {
                 cx.notify();
             }),
         );
+        // This fork: Orbital Laser installed and updated before the game starts (`orbital_mod`).
+        let orbital_mod = switch("orbital-mod", self.settings.orbital_mod_updates(), &t).on_click(
+            cx.listener(|this, _: &ClickEvent, _, cx| {
+                this.settings.orbital_mod_updates = Some(!this.settings.orbital_mod_updates());
+                this.settings.save();
+                cx.notify();
+            }),
+        );
         let opening = switch("opening", !self.settings.skip_opening, &t).on_click(cx.listener(
             |this, _: &ClickEvent, _, cx| {
                 this.settings.skip_opening = !this.settings.skip_opening;
@@ -2517,6 +2533,15 @@ impl Launcher {
                             "Your selected version only changes if you were playing the newest one.",
                         )),
                         Some(toggle.into_any_element()),
+                        &t,
+                    ))
+                    .child(index_row(
+                        n + 2,
+                        "Keep Orbital Laser up to date",
+                        Some(plain(
+                            "Installs its newest release when you press Play. A copy as new or newer is left alone.",
+                        )),
+                        Some(orbital_mod.into_any_element()),
                         &t,
                     ))
                     .child(group("Launcher", "monitor"))
