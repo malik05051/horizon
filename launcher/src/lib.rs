@@ -10,6 +10,7 @@ pub mod heads;
 pub mod modpacks;
 pub mod mojang;
 pub mod orbital;
+pub mod orbital_mod;
 pub mod process;
 pub mod servers;
 pub mod signed;

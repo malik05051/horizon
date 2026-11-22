@@ -87,6 +87,11 @@ fn agent() -> ureq::Agent {
 }
 
 fn get(url: &str) -> Result<ureq::Response, String> {
+    get_unless_missing(url)?.ok_or_else(|| format!("{url} answered 404"))
+}
+
+/// [`get`], with `None` for a 404: a repository with no release yet, an asset that is gone.
+pub(crate) fn get_unless_missing(url: &str) -> Result<Option<ureq::Response>, String> {
     let mut request = agent().get(url);
     // CI runners share addresses and hit GitHub's anonymous rate limit; they pass their own token.
     if let Some(token) = std::env::var("HORIZON_GITHUB_TOKEN")
@@ -97,13 +102,17 @@ fn get(url: &str) -> Result<ureq::Response, String> {
             request = request.set("Authorization", &format!("Bearer {token}"));
         }
     }
-    request.call().map_err(|e| match e {
-        ureq::Error::Status(403, _) => {
-            "GitHub's rate limit was reached. Try again in a few minutes.".into()
-        }
-        ureq::Error::Status(code, _) => format!("{url} answered {code}"),
-        ureq::Error::Transport(t) => format!("No connection: {t}"),
-    })
+    match request.call() {
+        Ok(response) => Ok(Some(response)),
+        Err(ureq::Error::Status(404, _)) => Ok(None),
+        Err(e) => Err(match e {
+            ureq::Error::Status(403, _) => {
+                "GitHub's rate limit was reached. Try again in a few minutes.".into()
+            }
+            ureq::Error::Status(code, _) => format!("{url} answered {code}"),
+            ureq::Error::Transport(t) => format!("No connection: {t}"),
+        }),
+    }
 }
 
 /// A Horizon game tag: an orbital build (`orbital-mod-api-12`, the ones this launcher installs), or
@@ -1664,6 +1673,10 @@ pub fn client(tag: &str) -> Result<Command, String> {
     need_prepared(tag)?;
     complete_packs(tag);
     crate::browser::horizon::before_play(&game_home());
+    match crate::orbital_mod::before_play(&game_home()) {
+        Ok(outcome) => eprintln!("{outcome}"),
+        Err(e) => eprintln!("{e}"),
+    }
     let mut cmd = client_command(tag);
     // A sign-in that can't be renewed (no network, expired) still lets the game start, offline.
     if let Err(e) = crate::account::attach_session(&mut cmd, &game_home()) {
@@ -2234,6 +2247,9 @@ pub enum Msg {
     /// The selected account's session file for the game about to start (none = offline), or
     /// why it could not be renewed.
     Session(Result<Option<PathBuf>, String>),
+    /// What the Orbital Laser check before playing did (`orbital_mod`), or why it couldn't
+    /// update it; the game starts either way.
+    OrbitalMod(Result<String, String>),
     /// A modpack step's line (`modpacks`).
     PackLine(String),
     /// A modpack step ended: the pack as it now is.
@@ -2346,6 +2362,10 @@ pub struct Settings {
     /// first-run question, or on the Play page once if they answered that before it existed.
     #[serde(default)]
     pub ping_notice_seen: bool,
+    /// Whether the Orbital Laser mod is installed and updated before the game starts
+    /// (`orbital_mod`). Unset means on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orbital_mod_updates: Option<bool>,
 }
 
 impl Settings {
@@ -2370,6 +2390,10 @@ impl Settings {
     /// Whether the launcher keeps its entry in the applications menu (Linux).
     pub fn desktop_entry(&self) -> bool {
         self.desktop_entry.unwrap_or(true)
+    }
+    /// Whether the Orbital Laser mod is kept up to date before the game starts.
+    pub fn orbital_mod_updates(&self) -> bool {
+        self.orbital_mod_updates.unwrap_or(true)
     }
     /// Whether new Horizon versions are installed automatically.
     pub fn auto_install(&self) -> bool {

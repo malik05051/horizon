@@ -295,7 +295,7 @@ enum Cmd {
     },
     /// Show the launcher's settings, or set one (the Settings page): selected-version TAG,
     /// minecraft-dir PATH, server-dir PATH ("default" resets a folder), install-new-versions
-    /// on|off, opening-animation on|off
+    /// on|off, opening-animation on|off, orbital-mod-updates on|off
     Settings {
         #[arg(value_parser = SETTING_KEYS)]
         key: Option<String>,
@@ -397,12 +397,13 @@ pub fn command() -> clap::Command {
 pub const AI_COMMANDS: [&str; 2] = ["mcp", "agent-config"];
 
 /// The keys `settings` sets.
-const SETTING_KEYS: [&str; 5] = [
+const SETTING_KEYS: [&str; 6] = [
     "selected-version",
     "minecraft-dir",
     "server-dir",
     "install-new-versions",
     "opening-animation",
+    "orbital-mod-updates",
 ];
 
 fn on_off(value: &str) -> Result<bool, String> {
@@ -421,6 +422,7 @@ fn set_setting(s: &mut backend::Settings, key: &str, value: &str) -> Result<(), 
         "server-dir" => s.server_dir = folder(value),
         "install-new-versions" => s.install_new_versions = Some(on_off(value)?),
         "opening-animation" => s.skip_opening = !on_off(value)?,
+        "orbital-mod-updates" => s.orbital_mod_updates = Some(on_off(value)?),
         _ => return Err(format!("No setting {key}.")),
     }
     Ok(())
@@ -434,6 +436,7 @@ fn settings_json(s: &backend::Settings) -> serde_json::Value {
         "server_dir": backend::server_dir(None),
         "install_new_versions": s.install_new_versions.unwrap_or(true),
         "opening_animation": !s.skip_opening,
+        "orbital_mod_updates": s.orbital_mod_updates(),
         "game_args": s.game_args,
         "desktop_entry": s.desktop_entry.unwrap_or(true),
         "no_ai": backend::no_ai(),
