@@ -132,11 +132,11 @@ MCP: `account_offline`.
 
 ## `horizon-launcher settings`
 
-Show the launcher's settings, or set one (the Settings page): selected-version TAG, minecraft-dir PATH, server-dir PATH ("default" resets a folder), install-new-versions on|off, opening-animation on|off.
+Show the launcher's settings, or set one (the Settings page): selected-version TAG, minecraft-dir PATH, server-dir PATH ("default" resets a folder), install-new-versions on|off, opening-animation on|off, orbital-mod-updates on|off.
 
     horizon-launcher settings [KEY] [VALUE]
 
-- `KEY` (selected-version, minecraft-dir, server-dir, install-new-versions, opening-animation)
+- `KEY` (selected-version, minecraft-dir, server-dir, install-new-versions, opening-animation, orbital-mod-updates)
 - `VALUE`: The new value (with KEY)
 
 MCP: `settings`.
